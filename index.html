@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#C2410C">
+<meta name="apple-mobile-web-app-title" content="セリフ稽古帳">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<title>セリフ稽古帳</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: one-screen app. Top bar → either the script editor or a rehearsal stage where the whole screen is the "next" button. */
+:root{
+  --bg:#ECEEF1; --surface:#FFFFFF; --fg:#1A1E27; --muted:#5E6573; --line:#D3D7DE;
+  --accent:#C2410C; --accent-soft:#FCE9DF; --mine:#FFF6E0; --mine-edge:#E2A33B;
+  --display:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif;
+  --body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#14171D; --surface:#1D2129; --fg:#E9EBEF; --muted:#9AA1AE; --line:#2E333D;
+  --accent:#F08A4B; --accent-soft:#3A2418; --mine:#2B2414; --mine-edge:#C98E2E; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#14171D; --surface:#1D2129; --fg:#E9EBEF; --muted:#9AA1AE; --line:#2E333D;
+  --accent:#F08A4B; --accent-soft:#3A2418; --mine:#2B2414; --mine-edge:#C98E2E; color-scheme:dark}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.7;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+.app{height:100%;display:flex;flex-direction:column;max-width:760px;margin:0 auto;box-sizing:border-box;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:12px 8px}
+h1{font-family:var(--display);font-weight:800;font-size:22px;margin:0;letter-spacing:.04em}
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px}
+.tabs button{border:0;background:transparent;color:var(--muted);font:inherit;font-size:15px;font-weight:700;padding:8px 16px;border-radius:999px;cursor:pointer;touch-action:manipulation}
+.tabs button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* editor */
+#edit{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:14px;padding-block:6px 20px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
+label.lab{display:block;font-size:12px;font-weight:700;letter-spacing:.08em;color:var(--muted);margin-bottom:6px}
+textarea{width:100%;box-sizing:border-box;min-height:200px;resize:vertical;font:inherit;font-size:16px;line-height:1.8;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px}
+.hint{font-size:13px;color:var(--muted);margin:8px 0 0}
+.hint code{background:var(--bg);padding:1px 6px;border-radius:4px}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--bg);color:var(--fg);font:inherit;font-size:15px;padding:8px 16px;border-radius:999px;cursor:pointer;touch-action:manipulation}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+.levels{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.level{text-align:left;border:1px solid var(--line);background:var(--bg);color:var(--fg);font:inherit;border-radius:10px;padding:10px 12px;cursor:pointer;touch-action:manipulation}
+.level b{display:block;font-size:15px}
+.level span{font-size:12px;color:var(--muted)}
+.level[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent)}
+.opt{display:flex;align-items:center;gap:8px;font-size:15px;margin-top:12px;cursor:pointer}
+.opt input{width:20px;height:20px;accent-color:var(--accent)}
+.go{border:0;background:var(--accent);color:#fff;font:inherit;font-size:18px;font-weight:700;padding:16px;border-radius:12px;cursor:pointer;width:100%;touch-action:manipulation}
+.stat{font-size:13px;color:var(--muted);margin:8px 0 0}
+
+/* stage: the whole area below the bar is one tap target */
+#stage{flex:1;min-height:0;display:flex;flex-direction:column}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted);padding-bottom:6px;flex-wrap:wrap}
+.bar .ctrls{display:flex;gap:6px}
+.mini{border:1px solid var(--line);background:var(--surface);color:var(--fg);font:inherit;font-size:14px;padding:6px 12px;border-radius:8px;cursor:pointer;touch-action:manipulation}
+.progress{height:3px;background:var(--line);border-radius:3px;overflow:hidden}
+.progress i{display:block;height:100%;background:var(--accent);width:0;transition:width .15s}
+#feed{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-block:12px 12px;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.ln{display:grid;grid-template-columns:4.5em 1fr;gap:8px;align-items:start}
+.ln .who{font-size:13px;font-weight:700;color:var(--muted);text-align:right;padding-top:10px;overflow-wrap:anywhere}
+.ln .txt{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:18px;min-width:0;overflow-wrap:anywhere}
+.ln.mine .who{color:var(--mine-edge)}
+.ln.mine .txt{background:var(--mine);border-color:var(--mine-edge)}
+.ln.dir{grid-template-columns:1fr}
+.ln.dir .txt{background:transparent;border:0;border-left:2px solid var(--line);border-radius:0;color:var(--muted);font-size:14px;padding:2px 12px}
+.ln.past{opacity:.5}
+.ln.past.mine,.ln.just{opacity:.85}
+.ln.cur .txt{box-shadow:0 0 0 2px var(--accent);font-size:20px}
+.ln.mine.cur .txt{padding:14px 14px}
+.hole{display:inline-block;color:transparent;border-bottom:2px solid var(--mine-edge);background:color-mix(in srgb,var(--mine-edge) 18%,transparent);border-radius:2px;margin:0 1px;line-height:1.3}
+.blank{color:var(--mine-edge);font-weight:700;letter-spacing:.1em}
+.taphint{text-align:center;font-size:13px;color:var(--muted);padding-block:6px calc(10px + env(safe-area-inset-bottom,0px));pointer-events:none}
+.end{text-align:center;padding:24px 8px;margin:auto 0}
+.end h2{font-family:var(--display);font-size:26px;margin:0 0 6px}
+.end p{color:var(--muted);margin:0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:420px){.ln{grid-template-columns:3.6em 1fr;gap:6px}.ln .who{font-size:12px}}
+
+*{box-sizing:border-box}
+.app{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.import{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
+.import label.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--accent);color:var(--accent);background:var(--surface);font-weight:700;font-size:15px;padding:9px 14px;border-radius:10px;cursor:pointer}
+.import input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
+.import .opt{margin-top:0}
+#impStatus{font-size:13px;color:var(--muted);margin:8px 0 0;min-height:1em}
+#impStatus.err{color:var(--accent)}
+#undo{border:0;background:none;color:var(--accent);font:inherit;font-size:13px;text-decoration:underline;cursor:pointer;padding:0;margin-left:6px}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <h1>セリフ稽古帳</h1>
+    <div class="tabs" role="group" aria-label="画面">
+      <button id="tabEdit" aria-pressed="true">台本</button>
+      <button id="tabStage" aria-pressed="false">稽古</button>
+    </div>
+  </header>
+
+  <section id="edit">
+    <div class="card">
+      <label class="lab" for="script">台本（1行に1セリフ）</label>
+      <textarea id="script" spellcheck="false"></textarea>
+      <p class="hint"><code>役名：セリフ</code> または <code>役名「セリフ」</code> の形で書くと役ごとに分かれます。役名のない行はト書きとして自動で流れます。</p>
+      <div class="import">
+        <label class="btn" for="pdfIn">PDFから読み込む</label>
+        <input type="file" id="pdfIn" accept="application/pdf">
+        <label class="btn" for="imgIn">写真・画像から読み込む</label>
+        <input type="file" id="imgIn" accept="image/*" multiple>
+        <label class="opt"><input type="checkbox" id="vert" checked> 縦書きの台本</label>
+      </div>
+      <p id="impStatus" aria-live="polite"></p>
+    </div>
+    <div class="card">
+      <label class="lab">自分の役</label>
+      <div class="row" id="roles"></div>
+      <p class="stat" id="roleStat"></p>
+    </div>
+    <div class="card">
+      <label class="lab">難易度（自分のセリフの隠し方）</label>
+      <div class="levels" id="levels"></div>
+      <label class="opt"><input type="checkbox" id="speak"> 相手のセリフを読み上げる</label>
+    </div>
+    <button class="go" id="start">稽古をはじめる</button>
+  </section>
+
+  <section id="stage" hidden>
+    <div class="bar">
+      <span id="info"></span>
+      <div class="ctrls">
+        <button class="mini" id="back">戻る</button>
+        <button class="mini" id="restart">最初から</button>
+      </div>
+    </div>
+    <div class="progress"><i id="prog"></i></div>
+    <div id="feed" aria-live="polite"></div>
+    <div class="taphint" id="taphint">どこでもタップで次へ</div>
+  </section>
+</div>
+
+<script>
+const SAMPLE = `（放課後の教室。夕日が差し込んでいる）
+ハルカ「まだ残ってたんだ。」
+ソウタ「うん、ちょっと考えごと。」
+ハルカ「また劇のこと？本番、来週だもんね。」
+ソウタ「セリフがさ、どうしても最後のところで飛ぶんだよ。」
+ハルカ「じゃあ、ここで一回通してみようよ。私が相手やるから。」
+ソウタ「いいの？助かる。」
+（ソウタ、立ち上がって窓の方へ歩く）
+ハルカ「その代わり、間違えたら購買のパンおごりね。」
+ソウタ「それは聞いてない。でも、まあいいや。やろう。」`;
+
+const LEVELS = [
+  {id:"all",   name:"全部見せる", desc:"まずは読み込み", ratio:0},
+  {id:"light", name:"虫食い・少し", desc:"3割を穴あき", ratio:.3},
+  {id:"heavy", name:"虫食い・多め", desc:"6割を穴あき", ratio:.6},
+  {id:"head",  name:"頭だけ",     desc:"最初の数文字だけ", ratio:-1},
+  {id:"none",  name:"全部消す",   desc:"何も見ないで言う", ratio:1},
+];
+
+const $ = id => document.getElementById(id);
+const store = {
+  get(k,d){try{const v=localStorage.getItem("serifu:"+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem("serifu:"+k,JSON.stringify(v))}catch(e){}}
+};
+
+let state = {
+  script: store.get("script2", SAMPLE),
+  role: store.get("role2", "ソウタ"),
+  level: store.get("level", "light"),
+  speak: store.get("speak", false),
+};
+let lines = [], run = null;
+
+/* ---------- parsing ---------- */
+function parse(text){
+  const out=[];
+  for(let raw of text.split(/\r?\n/)){
+    const s=raw.trim(); if(!s) continue;
+    let m = s.match(/^([^：:「」（）()\s]{1,12})\s*[：:]\s*(.+)$/);
+    if(m){out.push({who:m[1],text:m[2]});continue}
+    m = s.match(/^([^：:「」（）()\s]{1,12})\s*(「.+」?)$/);
+    if(m){out.push({who:m[1],text:m[2]});continue}
+    out.push({who:null,text:s});
+  }
+  return out;
+}
+function roleList(ls){
+  const c=new Map(); ls.forEach(l=>{if(l.who)c.set(l.who,(c.get(l.who)||0)+1)});
+  return [...c.entries()];
+}
+
+/* ---------- masking ---------- */
+const PUNCT=/^[\s、。，．,.！？!?「」『』（）()…ー〜~・―\-]+$/;
+function segments(t){
+  if(window.Intl&&Intl.Segmenter){
+    try{return [...new Intl.Segmenter("ja",{granularity:"word"}).segment(t)].map(s=>s.segment)}catch(e){}
+  }
+  return t.match(/[一-龯々]+|[ぁ-ゖ]+|[ァ-ヺー]+|[A-Za-z0-9]+|./g)||[];
+}
+function esc(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function hole(s){return `<span class="hole">${esc(s)}</span>`}
+function mask(text, levelId){
+  const lv=LEVELS.find(l=>l.id===levelId);
+  if(lv.ratio===0) return esc(text);
+  if(lv.ratio===1) return `<span class="blank">？ ？ ？</span>`;
+  const segs=segments(text);
+  if(lv.ratio===-1){
+    let shown=0, keep=Math.max(2,Math.ceil(text.replace(/[「」\s]/g,"").length*.2));
+    return segs.map(s=>{
+      if(PUNCT.test(s)) return esc(s);
+      if(shown<keep){shown+=s.length;return esc(s)}
+      return hole(s);
+    }).join("");
+  }
+  const idx=segs.map((s,i)=>PUNCT.test(s)?-1:i).filter(i=>i>=0);
+  const n=Math.max(1,Math.round(idx.length*lv.ratio));
+  for(let i=idx.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[idx[i],idx[j]]=[idx[j],idx[i]]}
+  const hide=new Set(idx.slice(0,n));
+  return segs.map((s,i)=>hide.has(i)?hole(s):esc(s)).join("");
+}
+
+/* ---------- editor ---------- */
+function renderEditor(){
+  lines=parse(state.script);
+  const roles=roleList(lines);
+  if(!roles.find(r=>r[0]===state.role) && roles.length) state.role=roles[0][0];
+  $("roles").innerHTML = roles.length ? roles.map(([r,n])=>
+    `<button class="chip" data-role="${esc(r)}" aria-pressed="${r===state.role}">${esc(r)}（${n}）</button>`).join("")
+    : `<span class="stat">役名が見つかりません。<code>役名：セリフ</code> の形で書いてください。</span>`;
+  const mine=lines.filter(l=>l.who===state.role).length;
+  $("roleStat").textContent = roles.length ? `全${lines.length}行のうち、自分のセリフ ${mine}個` : "";
+  $("levels").innerHTML = LEVELS.map(l=>
+    `<button class="level" data-level="${l.id}" aria-pressed="${l.id===state.level}"><b>${l.name}</b><span>${l.desc}</span></button>`).join("");
+  $("speak").checked = state.speak;
+}
+$("script").value=state.script;
+$("script").addEventListener("input",e=>{state.script=e.target.value;store.set("script2",state.script);renderEditor()});
+$("roles").addEventListener("click",e=>{const b=e.target.closest("[data-role]");if(!b)return;state.role=b.dataset.role;store.set("role2",state.role);renderEditor()});
+$("levels").addEventListener("click",e=>{const b=e.target.closest("[data-level]");if(!b)return;state.level=b.dataset.level;store.set("level",state.level);renderEditor()});
+$("speak").addEventListener("change",e=>{state.speak=e.target.checked;store.set("speak",state.speak)});
+
+/* ---------- rehearsal ----------
+   pos = index of the line now waiting for a tap. Stage directions never wait:
+   they are shown and skipped automatically. One tap = reveal my line + move on. */
+const isMine = l => l && l.who===state.role;
+const isDir  = l => l && !l.who;
+function skipDirs(p){while(p<lines.length&&isDir(lines[p]))p++;return p}
+function startRun(){
+  if(!lines.length) return;
+  const round = run && run.script===state.script ? run.round+1 : 1;
+  run={pos:skipDirs(0),round,masks:{},script:state.script};
+  lines.forEach((l,i)=>{if(isMine(l)) run.masks[i]=mask(l.text,state.level)});
+  showStage(); renderStage(); speakCur();
+}
+function lineHTML(i){
+  const l=lines[i], isCur=i===run.pos;
+  const cls=["ln",isDir(l)?"dir":"",isMine(l)?"mine":"",i<run.pos?"past":"",i===run.pos-1?"just":"",isCur?"cur":""].join(" ");
+  const body = isMine(l)&&isCur ? run.masks[i] : esc(l.text);
+  return l.who ? `<div class="${cls}"><div class="who">${esc(l.who)}</div><div class="txt">${body}</div></div>`
+               : `<div class="${cls}"><div class="txt">${body}</div></div>`;
+}
+function renderStage(){
+  const done=run.pos>=lines.length;
+  const lv=LEVELS.find(l=>l.id===state.level).name;
+  $("info").textContent=`${run.round}周目 ・ ${state.role} ・ ${lv}`;
+  $("prog").style.width=(Math.min(run.pos,lines.length)/lines.length*100)+"%";
+  const feed=$("feed");
+  if(done){
+    feed.innerHTML=`<div class="end"><h2>${run.round}周目 おわり</h2><p>タップでもう一周</p></div>`;
+    $("taphint").textContent="";
+    return;
+  }
+  const from=Math.max(0,run.pos-40);
+  let html="";
+  for(let i=run.pos;i>=from;i--) html+=lineHTML(i);  // newest on top
+  feed.innerHTML=html;
+  feed.scrollTop=0;
+  $("taphint").textContent = isMine(lines[run.pos]) ? "言ったらタップ（答えが出て次へ）" : "どこでもタップで次へ";
+}
+function advance(){
+  if(!run) return;
+  if(run.pos>=lines.length){startRun();return}
+  run.pos=skipDirs(run.pos+1);
+  renderStage(); speakCur();
+}
+function back(){
+  if(!run) return;
+  let p=Math.min(run.pos,lines.length)-1;
+  while(p>0&&isDir(lines[p]))p--;
+  run.pos=Math.max(skipDirs(0),p);
+  renderStage();
+}
+function speakCur(){
+  if(!state.speak||!window.speechSynthesis||run.pos>=lines.length) return;
+  const l=lines[run.pos]; if(isMine(l)) return;
+  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(l.text.replace(/[「」]/g,""));u.lang="ja-JP";u.rate=1.15;speechSynthesis.speak(u)}catch(e){}
+}
+$("feed").addEventListener("click",advance);
+document.addEventListener("keydown",e=>{
+  if($("stage").hidden||e.target.matches("textarea,input")) return;
+  if(e.key===" "||e.key==="Enter"||e.key==="ArrowRight"){e.preventDefault();advance()}
+  if(e.key==="ArrowLeft") back();
+});
+$("back").addEventListener("click",back);
+$("restart").addEventListener("click",()=>{run.round--;startRun()});
+$("start").addEventListener("click",()=>{renderEditor();startRun()});
+
+function showStage(){$("edit").hidden=true;$("stage").hidden=false;$("tabEdit").setAttribute("aria-pressed","false");$("tabStage").setAttribute("aria-pressed","true")}
+function showEdit(){$("stage").hidden=true;$("edit").hidden=false;$("tabEdit").setAttribute("aria-pressed","true");$("tabStage").setAttribute("aria-pressed","false");try{speechSynthesis.cancel()}catch(e){}renderEditor()}
+$("tabEdit").addEventListener("click",showEdit);
+$("tabStage").addEventListener("click",()=>{if(run&&run.script===state.script){showStage();renderStage()}else{renderEditor();startRun()}});
+
+
+/* ---------- PDF / 画像の読み込み ---------- */
+let prevScript=null;
+function status(msg,err){const s=$("impStatus");s.className=err?"err":"";s.innerHTML=msg}
+function loadScript(src){return new Promise((ok,ng)=>{const s=document.createElement("script");s.src=src;s.onload=ok;s.onerror=()=>ng(new Error("読み込みに失敗: "+src));document.head.appendChild(s)})}
+async function needPdf(){
+  if(window.pdfjsLib) return;
+  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js");
+  pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+}
+let ocrWorker=null, ocrLang=null;
+async function ocr(img,label){
+  if(!window.Tesseract) await loadScript("https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js");
+  const lang=$("vert").checked?"jpn_vert":"jpn";
+  if(!ocrWorker||ocrLang!==lang){
+    if(ocrWorker) await ocrWorker.terminate();
+    status(`${label}：文字認識の準備中…（初回は少し時間がかかります）`);
+    ocrWorker=await Tesseract.createWorker(lang,1,{logger:m=>{
+      if(m.status==="recognizing text") status(`${label}：読み取り中… ${Math.round(m.progress*100)}%`);
+    }});
+    if(lang==="jpn_vert") await ocrWorker.setParameters({tessedit_pageseg_mode:"5"}); // 縦書きブロック
+    ocrLang=lang;
+  }
+  const {data}=await ocrWorker.recognize(img);
+  return data.text.split(/\n/).map(l=>{
+    l=l.trim().replace(/\?/g,"？").replace(/!/g,"！").replace(/~/g,"〜");
+    // 「役名  セリフ」のように役名のあとに空白がある → 役名「セリフ」
+    const m=l.match(/^(\S{1,6})\s{2,}(.+)$/);
+    if(m){let t=m[2].replace(/\s+/g,"");if(!t.startsWith("「"))t="「"+t;return m[1]+t}
+    return l.replace(/\s+/g,"");
+  }).join("\n");
+}
+async function pdfText(file){
+  await needPdf();
+  const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer(),
+    cMapUrl:"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/",cMapPacked:true,
+    standardFontDataUrl:"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/standard_fonts/"}).promise;
+  const vert=$("vert").checked, out=[];
+  for(let p=1;p<=pdf.numPages;p++){
+    status(`PDF ${p}/${pdf.numPages}ページ目を読み取り中…`);
+    const page=await pdf.getPage(p);
+    const tc=await page.getTextContent();
+    const items=tc.items.filter(it=>it.str&&it.str.trim());
+    const chars=items.reduce((n,it)=>n+it.str.length,0);
+    if(chars<10){ // 文字が埋め込まれていない（スキャン）→ 画像として読む
+      const vp=page.getViewport({scale:2.5}), c=document.createElement("canvas");
+      c.width=vp.width;c.height=vp.height;
+      await page.render({canvasContext:c.getContext("2d"),viewport:vp}).promise;
+      out.push(await ocr(c,`PDF ${p}/${pdf.numPages}ページ`));
+      continue;
+    }
+    // 行（縦書きなら列）ごとにまとめる
+    const key=it=>vert?-it.transform[4]:-it.transform[5];       // 縦: 右の列から / 横: 上の行から
+    const pos=it=>vert?-it.transform[5]:it.transform[4];        // 縦: 上から / 横: 左から
+    const tol=vert?Math.max(4,(items[0].width||10)*.5):Math.max(3,(items[0].height||10)*.5);
+    const sorted=[...items].sort((a,b)=>key(a)-key(b));
+    const groups=[];
+    for(const it of sorted){
+      const g=groups[groups.length-1];
+      if(g&&Math.abs(key(it)-g.k)<=tol) g.items.push(it); else groups.push({k:key(it),items:[it]});
+    }
+    for(const g of groups) out.push(g.items.sort((a,b)=>pos(a)-pos(b)).map(i=>i.str).join("").replace(/\s+/g,""));
+  }
+  return out.join("\n");
+}
+// 読み取ったテキストを「役名「セリフ」」の形に整える
+function tidy(text){
+  // 縦書き用の記号（﹁︒など）や部首文字（⼩など）を普通の文字に戻す
+  text=text.normalize("NFKC").replace(/\?/g,"？").replace(/!/g,"！").replace(/\.\.\./g,"…").replace(/~/g,"〜");
+  const raw=text.split(/\n/).map(s=>s.trim()).filter(Boolean).filter(s=>!/^[0-9０-９]{1,4}$/.test(s)); // ページ番号を除く
+  const out=[];
+  const open=s=>(s.match(/「/g)||[]).length>(s.match(/」/g)||[]).length;
+  for(let i=0;i<raw.length;i++){
+    let s=raw[i];
+    // 役名だけの行 + 次の行が「…」→ くっつける
+    if(s.length<=6&&!/[。、「」『』！？]/.test(s)&&raw[i+1]&&raw[i+1].startsWith("「")){s=s+raw[++i]}
+    // 「 が閉じていなければ次の行とつなげる
+    while(open(s)&&raw[i+1]&&!/^[^「」]{1,6}「/.test(raw[i+1])) s+=raw[++i];
+    out.push(s);
+  }
+  return out.join("\n");
+}
+function setImported(text,what){
+  const t=tidy(text);
+  if(!t){status(`${what}から文字が読み取れませんでした。明るく、まっすぐ撮った写真で試してください。`,true);return}
+  prevScript=state.script;
+  state.script=t; $("script").value=t; store.set("script2",t); run=null; renderEditor();
+  const n=parse(t).filter(l=>l.who).length;
+  status(`${what}から読み込みました（セリフ${n}個）。読み間違いがあるので、上の台本を見て直してください。<button id="undo">元に戻す</button>`);
+  $("undo").onclick=()=>{state.script=prevScript;$("script").value=prevScript;store.set("script2",prevScript);renderEditor();status("元に戻しました。")};
+}
+$("pdfIn").addEventListener("change",async e=>{
+  const f=e.target.files[0]; e.target.value=""; if(!f) return;
+  try{setImported(await pdfText(f),"PDF")}catch(err){status("PDFを読み込めませんでした（"+esc(err.message)+"）",true)}
+});
+$("imgIn").addEventListener("change",async e=>{
+  const files=[...e.target.files]; e.target.value=""; if(!files.length) return;
+  try{
+    const parts=[];
+    for(let i=0;i<files.length;i++) parts.push(await ocr(files[i],`画像 ${i+1}/${files.length}`));
+    setImported(parts.join("\n"),"画像");
+  }catch(err){status("画像を読み込めませんでした（"+esc(err.message)+"）",true)}
+});
+if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+renderEditor();
+</script>
+</body>
+</html>
